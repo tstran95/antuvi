@@ -1,0 +1,10 @@
+/Users/tstran95/ALL_IN_ONE/IT/PROJECT/fb-auto-poster/src/main/java/com/fbposter/App.java
+/Users/tstran95/ALL_IN_ONE/IT/PROJECT/fb-auto-poster/src/main/java/com/fbposter/Config.java
+/Users/tstran95/ALL_IN_ONE/IT/PROJECT/fb-auto-poster/src/main/java/com/fbposter/ai/GeminiClient.java
+/Users/tstran95/ALL_IN_ONE/IT/PROJECT/fb-auto-poster/src/main/java/com/fbposter/ai/PromptSettings.java
+/Users/tstran95/ALL_IN_ONE/IT/PROJECT/fb-auto-poster/src/main/java/com/fbposter/facebook/FacebookPoster.java
+/Users/tstran95/ALL_IN_ONE/IT/PROJECT/fb-auto-poster/src/main/java/com/fbposter/facebook/FacebookTokenHelper.java
+/Users/tstran95/ALL_IN_ONE/IT/PROJECT/fb-auto-poster/src/main/java/com/fbposter/history/PostedHistory.java
+/Users/tstran95/ALL_IN_ONE/IT/PROJECT/fb-auto-poster/src/main/java/com/fbposter/model/Article.java
+/Users/tstran95/ALL_IN_ONE/IT/PROJECT/fb-auto-poster/src/main/java/com/fbposter/rss/RssReader.java
+/Users/tstran95/ALL_IN_ONE/IT/PROJECT/fb-auto-poster/src/main/java/com/fbposter/telegram/TelegramNotifier.java

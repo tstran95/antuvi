@@ -1,0 +1,10 @@
+com/fbposter/ai/GeminiClient.class
+com/fbposter/rss/RssReader.class
+com/fbposter/App.class
+com/fbposter/history/PostedHistory.class
+com/fbposter/facebook/FacebookTokenHelper.class
+com/fbposter/facebook/FacebookPoster.class
+com/fbposter/ai/PromptSettings.class
+com/fbposter/Config.class
+com/fbposter/model/Article.class
+com/fbposter/telegram/TelegramNotifier.class
