@@ -25,6 +25,20 @@ public class RssReader {
             .followRedirects(HttpClient.Redirect.NORMAL)
             .build();
 
+    private final boolean fetchFullPage;
+
+    public RssReader() {
+        this(false);
+    }
+
+    /**
+     * @param fetchFullPage nếu true: truy cập link bài viết để lấy nội dung đầy đủ + ảnh
+     *                      (chậm hơn nhưng bài viết chất lượng hơn)
+     */
+    public RssReader(boolean fetchFullPage) {
+        this.fetchFullPage = fetchFullPage;
+    }
+
     public List<Article> readAll(List<String> feedUrls) {
         List<Article> result = new ArrayList<>();
         for (String url : feedUrls) {
@@ -75,12 +89,111 @@ public class RssReader {
                 String imageUrl = extractImage(entry, rawContent);
 
                 if (!title.isBlank() && !link.isBlank()) {
-                    articles.add(new Article(title, link, content, imageUrl));
+                    Article article = new Article(title, link, content, imageUrl);
+                    if (fetchFullPage) {
+                        article = enrichFromPage(article);
+                    }
+                    articles.add(article);
                 }
             }
         }
-        System.out.println("[RSS] -> lấy được " + articles.size() + " bài");
+        System.out.println("[RSS] -> lấy được " + articles.size() + " bài"
+                + (fetchFullPage ? " (đã fetch nội dung đầy đủ)" : ""));
         return articles;
+    }
+
+    /**
+     * Fetch trang bài viết đầy đủ từ link, trích xuất nội dung text + ảnh chính.
+     * Nếu fetch thất bại -> giữ nguyên dữ liệu RSS gốc.
+     */
+    private Article enrichFromPage(Article rssArticle) {
+        String url = rssArticle.getLink();
+        if (url == null || url.isBlank()) return rssArticle;
+
+        try {
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .header("User-Agent", "Mozilla/5.0 (compatible; FbAutoPoster/1.0)")
+                    .timeout(Duration.ofSeconds(15))
+                    .GET()
+                    .build();
+            HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
+            if (resp.statusCode() >= 400) return rssArticle;
+
+            var doc = Jsoup.parse(resp.body());
+
+            // Trích nội dung text từ các vùng phổ biến
+            String fullContent = extractPageContent(doc);
+            if (fullContent == null || fullContent.isBlank()) return rssArticle;
+
+            // Trích ảnh chính: ưu tiên ảnh trong vùng nội dung
+            String pageImage = extractPageImage(doc);
+            String image = pageImage != null ? pageImage : rssArticle.getImageUrl();
+
+            return new Article(rssArticle.getTitle(), rssArticle.getLink(), fullContent, image);
+        } catch (Exception e) {
+            System.out.println("[RSS] Không fetch được trang: " + url + " (" + e.getMessage() + ")");
+            return rssArticle; // fallback RSS gốc
+        }
+    }
+
+    /**
+     * Trích xuất nội dung text từ trang web, thử nhiều selector phổ biến.
+     */
+    private String extractPageContent(org.jsoup.nodes.Document doc) {
+        // Thử các vùng nội dung chính theo thứ tự ưu tiên
+        String[] selectors = {
+                "#container .panel",       // kabala.vn
+                "article",                  // chuẩn HTML5
+                ".entry-content",           // WordPress
+                ".post-content",            // phổ biến
+                ".article-content",         // báo chí VN
+                ".content",                 // generic
+                "main",                     // HTML5
+                "#content",                 // WordPress cũ
+        };
+        for (String sel : selectors) {
+            var el = doc.selectFirst(sel);
+            if (el != null) {
+                String text = el.text().trim();
+                if (text.length() > 100) { // đủ dài mới nhận
+                    return text;
+                }
+            }
+        }
+        // Fallback: toàn bộ body text
+        var body = doc.selectFirst("body");
+        return body != null ? body.text().trim() : null;
+    }
+
+    /**
+     * Trích URL ảnh chính từ trang web.
+     * Ưu tiên: ảnh trong vùng nội dung -> og:image meta -> ảnh đầu tiên > 50KB
+     */
+    private String extractPageImage(org.jsoup.nodes.Document doc) {
+        // (1) Ảnh trong vùng nội dung bài viết
+        String[] contentSelectors = {
+                "#container .panel img", ".entry-content img",
+                ".post-content img", "article img", ".content img"
+        };
+        for (String sel : contentSelectors) {
+            var imgs = doc.select(sel);
+            for (var img : imgs) {
+                String src = img.absUrl("src");
+                if (src != null && !src.isBlank()
+                        && !src.contains("logo") && !src.contains("icon")
+                        && !src.contains("avatar") && !src.contains("banner")) {
+                    return src;
+                }
+            }
+        }
+        // (2) og:image meta tag
+        var ogImage = doc.selectFirst("meta[property=og:image]");
+        if (ogImage != null) {
+            String src = ogImage.attr("content");
+            if (!src.isBlank()) return src;
+        }
+        return null;
     }
 
     /**

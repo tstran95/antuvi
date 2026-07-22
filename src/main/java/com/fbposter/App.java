@@ -65,7 +65,7 @@ public class App {
             return;
         }
 
-        RssReader rss = new RssReader();
+        RssReader rss = new RssReader(true); // fetch bài đầy đủ + ảnh từ link
         PromptSettings promptSettings = new PromptSettings(
                 config.pageTopic(),
                 config.pageTone(),
