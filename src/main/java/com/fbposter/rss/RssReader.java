@@ -168,30 +168,36 @@ public class RssReader {
 
     /**
      * Trích URL ảnh chính từ trang web.
-     * Ưu tiên: ảnh trong vùng nội dung -> og:image meta -> ảnh đầu tiên > 50KB
+     * Ưu tiên: og:image (chất lượng cao, thiết kế cho Facebook share)
+     * -> ảnh featured trong nội dung -> ảnh khác (bỏ qua icon/logo nhỏ)
      */
     private String extractPageImage(org.jsoup.nodes.Document doc) {
-        // (1) Ảnh trong vùng nội dung bài viết
+        // (1) og:image meta — chất lượng cao nhất, thiết kế cho social sharing
+        var ogImage = doc.selectFirst("meta[property=og:image]");
+        if (ogImage != null) {
+            String src = ogImage.attr("content");
+            if (!src.isBlank() && !src.contains("logo") && !src.contains("icon")) {
+                return src;
+            }
+        }
+
+        // (2) Ảnh featured trong vùng nội dung (bỏ qua icon 12 con giáp nhỏ)
         String[] contentSelectors = {
-                "#container .panel img", ".entry-content img",
-                ".post-content img", "article img", ".content img"
+                ".entry-content img", ".post-content img",
+                "article img", ".content img", ".panel img"
         };
         for (String sel : contentSelectors) {
             var imgs = doc.select(sel);
             for (var img : imgs) {
                 String src = img.absUrl("src");
-                if (src != null && !src.isBlank()
-                        && !src.contains("logo") && !src.contains("icon")
-                        && !src.contains("avatar") && !src.contains("banner")) {
-                    return src;
-                }
+                if (src == null || src.isBlank()) continue;
+                // Bỏ qua icon zodiac nhỏ và logo
+                if (src.contains("logo") || src.contains("icon")
+                        || src.contains("avatar") || src.contains("banner")
+                        || src.contains("12congiap")  // icon zodiac nhỏ ~100px
+                        || src.contains("loading")) continue;
+                return src;
             }
-        }
-        // (2) og:image meta tag
-        var ogImage = doc.selectFirst("meta[property=og:image]");
-        if (ogImage != null) {
-            String src = ogImage.attr("content");
-            if (!src.isBlank()) return src;
         }
         return null;
     }

@@ -145,7 +145,7 @@ facebook.user.access.token=...   (user token ngắn hạn ở 6.2)
 
 ### Bước 6.4 — Chạy công cụ
 ```bash
-mvn clean package
+cd /d D:\PROJECT\MY_LOCAL\antuvi && chcp 65001 && mvn clean package -DskipTests -q && java -Dfile.encoding=UTF-8 -jar target/fb-auto-poster.jar --dry-run
 java -jar target/fb-auto-poster.jar --get-page-token
 ```
 Màn hình sẽ in ra **Page ID** và **Page Token** (thường không hết hạn).

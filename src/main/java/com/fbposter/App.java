@@ -14,6 +14,7 @@ import com.fbposter.model.Article;
 import com.fbposter.rss.RssReader;
 import com.fbposter.telegram.TelegramNotifier;
 
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -84,6 +85,9 @@ public class App {
         List<Article> articles = rss.readAll(config.rssSources());
         System.out.println("[App] Tổng số bài lấy được: " + articles.size());
 
+        // Random thứ tự để đa dạng nội dung (tránh luôn theo 12 con giáp)
+        Collections.shuffle(articles);
+
         int posted = 0;
         int max = config.maxPostsPerRun();
 
@@ -113,7 +117,11 @@ public class App {
                 System.out.println("---- NỘI DUNG SẼ ĐĂNG ----");
                 System.out.println(rewritten);
                 if (article.hasImage()) {
-                    System.out.println("[Ảnh] " + article.getImageUrl());
+                    if (isLowQualityImage(article.getImageUrl())) {
+                        System.out.println("[Ảnh nhỏ - sẽ dùng link share thay vì upload] " + article.getImageUrl());
+                    } else {
+                        System.out.println("[Ảnh] " + article.getImageUrl());
+                    }
                 }
                 if (includeLink) {
                     System.out.println("Nguồn: " + article.getLink());
@@ -124,14 +132,15 @@ public class App {
             }
 
             String postId;
-            if (article.hasImage()) {
-                // Bài có ảnh: đăng ảnh, chèn link nguồn vào caption (nếu bật)
+            // Nếu ảnh nhỏ/chất lượng kém (icon zodiac), đăng dạng link share
+            // để Facebook tự lấy og:image chất lượng cao từ trang nguồn
+            if (article.hasImage() && !isLowQualityImage(article.getImageUrl())) {
                 String caption = includeLink
                         ? rewritten + "\n\nNguồn: " + article.getLink()
                         : rewritten;
                 postId = facebook.postPhoto(caption, article.getImageUrl());
             } else {
-                // Không có ảnh: đăng dạng feed, dùng link để Facebook hiện preview
+                // Link share: Facebook tự scrape og:image từ trang nguồn (chất lượng cao hơn)
                 String link = includeLink ? article.getLink() : null;
                 postId = facebook.post(rewritten, link);
             }
@@ -219,5 +228,15 @@ public class App {
 
     private static boolean isBlank(String s) {
         return s == null || s.isBlank();
+    }
+
+    /** Ảnh icon zodiac nhỏ (~100px) hoặc ảnh chất lượng thấp -> nên dùng link share */
+    private static boolean isLowQualityImage(String imageUrl) {
+        if (imageUrl == null) return true;
+        return imageUrl.contains("12congiap")   // icon zodiac nhỏ ~100x100
+                || imageUrl.contains("/icon/")
+                || imageUrl.contains("/icons/")
+                || imageUrl.contains("avatar")
+                || imageUrl.contains("loading");
     }
 }
