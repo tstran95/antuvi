@@ -35,11 +35,26 @@
             <artifactId>jsoup</artifactId>
             <version>1.17.2</version>
         </dependency>
+
+        <!-- Google GenAI Java SDK: thay thế REST API thủ công, hỗ trợ cả
+             key AIza... (cũ) và AQ... (Auth key mới) -->
+        <dependency>
+            <groupId>com.google.genai</groupId>
+            <artifactId>google-genai</artifactId>
+            <version>1.62.0</version>
+        </dependency>
     </dependencies>
 
     <build>
         <finalName>fb-auto-poster</finalName>
         <plugins>
+            <!-- Trình biên dịch: pin bản mới để hiểu maven.compiler.release=17 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+            </plugin>
+
             <!-- Đóng gói thành 1 file JAR chạy được (fat jar) -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

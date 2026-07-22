@@ -1,6 +1,11 @@
 package com.fbposter;
 
+import com.fbposter.ai.AiClient;
+import com.fbposter.ai.DeepSeekClient;
 import com.fbposter.ai.GeminiClient;
+import com.fbposter.ai.GrokClient;
+import com.fbposter.ai.GroqClient;
+import com.fbposter.ai.OpenRouterClient;
 import com.fbposter.ai.PromptSettings;
 import com.fbposter.facebook.FacebookPoster;
 import com.fbposter.facebook.FacebookTokenHelper;
@@ -12,8 +17,15 @@ import com.fbposter.telegram.TelegramNotifier;
 import java.util.List;
 
 /**
- * Điểm khởi chạy: RSS -> lọc bài mới -> Gemini viết lại -> đăng Facebook -> lưu lịch sử.
- *
+ * Điểm khởi chạy: RSS -> lọc bài mới -> AI viết lại -> đăng Facebook -> lưu lịch sử.
+ * <p>
+ * Dùng Strategy Pattern để chọn AI provider qua config {@code ai.provider}:
+ * <ul>
+ *   <li>{@code groq} — Groq (miễn phí 30 req/phút, model mặc định llama-3.1-8b-instant)</li>
+ *   <li>{@code deepseek} — DeepSeek (có free tier, model mặc định deepseek-chat)</li>
+ *   <li>{@code gemini} — Google Gemini (cần billing, model mặc định gemini-2.0-flash)</li>
+ * </ul>
+ * <p>
  * Chạy:  java -jar target/fb-auto-poster.jar
  * Thêm cờ --dry-run để CHỈ chạy thử (không đăng lên Facebook thật).
  */
@@ -37,11 +49,13 @@ public class App {
             System.out.println("===== CHẾ ĐỘ DRY-RUN: chỉ in kết quả, KHÔNG đăng lên Facebook =====");
         }
 
-        // Kiểm tra cấu hình tối thiểu
-        if (isBlank(config.geminiApiKey())) {
-            System.out.println("[LỖI] Thiếu gemini.api.key. Hãy điền vào config.properties.");
-            return;
+        // ---- Khởi tạo AI Client (Strategy Pattern) ----
+        AiClient ai = createAiClient(config);
+        if (ai == null) {
+            return; // createAiClient đã in thông báo lỗi
         }
+
+        // Kiểm tra cấu hình Facebook
         if (!dryRun && (isBlank(config.facebookPageId()) || isBlank(config.facebookToken()))) {
             System.out.println("[LỖI] Thiếu facebook.page.id hoặc access.token. Hãy điền vào config.properties.");
             return;
@@ -60,7 +74,6 @@ public class App {
                 config.postUseEmoji(),
                 config.postHashtagCount(),
                 config.postExtraInstruction());
-        GeminiClient gemini = new GeminiClient(config.geminiApiKey(), config.geminiModel(), promptSettings);
         FacebookPoster facebook = new FacebookPoster(
                 config.facebookPageId(), config.facebookToken(), config.facebookApiVersion());
         PostedHistory history = new PostedHistory("posted-history.json");
@@ -86,8 +99,8 @@ public class App {
 
             System.out.println("\n[App] Xử lý: " + article.getTitle());
 
-            // 3. AI viết lại
-            String rewritten = gemini.rewrite(article);
+            // 3. AI viết lại (qua Strategy interface)
+            String rewritten = ai.rewrite(article);
             if (isBlank(rewritten)) {
                 System.out.println("[App] -> Bỏ qua (AI không trả về nội dung).");
                 continue;
@@ -106,7 +119,6 @@ public class App {
                     System.out.println("Nguồn: " + article.getLink());
                 }
                 System.out.println("---------------------------");
-                history.markPosted(article.getLink());
                 posted++;
                 continue;
             }
@@ -137,6 +149,72 @@ public class App {
         }
 
         System.out.println("\n[App] Hoàn tất. Đã xử lý/đăng " + posted + " bài.");
+    }
+
+    // ---- Factory method: Strategy Pattern ----
+
+    /**
+     * Tạo {@link AiClient} dựa trên {@code ai.provider} trong config.
+     * Trả về {@code null} nếu thiếu cấu hình.
+     */
+    private static AiClient createAiClient(Config config) {
+        String provider = config.aiProvider().toLowerCase();
+        PromptSettings promptSettings = new PromptSettings(
+                config.pageTopic(),
+                config.pageTone(),
+                config.postMinSentences(),
+                config.postMaxSentences(),
+                config.postUseEmoji(),
+                config.postHashtagCount(),
+                config.postExtraInstruction());
+
+        return switch (provider) {
+            case "openrouter" -> {
+                if (isBlank(config.openrouterApiKey())) {
+                    System.out.println("[LỖI] Chọn ai.provider=openrouter nhưng thiếu openrouter.api.key.");
+                    yield null;
+                }
+                System.out.println("[App] Dùng AI: OpenRouter (model: " + config.openrouterModel() + ")");
+                yield new OpenRouterClient(config.openrouterApiKey(), config.openrouterModel(), promptSettings);
+            }
+            case "grok" -> {
+                if (isBlank(config.grokApiKey())) {
+                    System.out.println("[LỖI] Chọn ai.provider=grok nhưng thiếu grok.api.key.");
+                    yield null;
+                }
+                System.out.println("[App] Dùng AI: Grok / xAI (model: " + config.grokModel() + ")");
+                yield new GrokClient(config.grokApiKey(), config.grokModel(), promptSettings);
+            }
+            case "groq" -> {
+                if (isBlank(config.groqApiKey())) {
+                    System.out.println("[LỖI] Chọn ai.provider=groq nhưng thiếu groq.api.key.");
+                    yield null;
+                }
+                System.out.println("[App] Dùng AI: Groq (model: " + config.groqModel() + ")");
+                yield new GroqClient(config.groqApiKey(), config.groqModel(), promptSettings);
+            }
+            case "deepseek" -> {
+                if (isBlank(config.deepseekApiKey())) {
+                    System.out.println("[LỖI] Chọn ai.provider=deepseek nhưng thiếu deepseek.api.key.");
+                    yield null;
+                }
+                System.out.println("[App] Dùng AI: DeepSeek (model: " + config.deepseekModel() + ")");
+                yield new DeepSeekClient(config.deepseekApiKey(), config.deepseekModel(), promptSettings);
+            }
+            case "gemini" -> {
+                if (isBlank(config.geminiApiKey())) {
+                    System.out.println("[LỖI] Chọn ai.provider=gemini nhưng thiếu gemini.api.key.");
+                    yield null;
+                }
+                System.out.println("[App] Dùng AI: Gemini (model: " + config.geminiModel() + ")");
+                yield new GeminiClient(config.geminiApiKey(), config.geminiModel(), promptSettings);
+            }
+            default -> {
+                System.out.println("[LỖI] ai.provider='" + provider + "' không hợp lệ. "
+                        + "Chọn: openrouter | groq | deepseek | gemini");
+                yield null;
+            }
+        };
     }
 
     private static boolean isBlank(String s) {

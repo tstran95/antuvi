@@ -72,6 +72,26 @@ public class Config {
     public String facebookApiVersion()  { return get("facebook.api.version", "v21.0"); }
     public String geminiApiKey()        { return get("gemini.api.key"); }
     public String geminiModel()         { return get("gemini.model", "gemini-2.0-flash"); }
+
+    // ---- DeepSeek ----
+    public String deepseekApiKey()      { return get("deepseek.api.key"); }
+    public String deepseekModel()       { return get("deepseek.model", "deepseek-chat"); }
+
+    // ---- Groq ----
+    public String groqApiKey()          { return get("groq.api.key"); }
+    public String groqModel()           { return get("groq.model", "llama-3.1-8b-instant"); }
+
+    // ---- OpenRouter ----
+    public String openrouterApiKey()    { return get("openrouter.api.key"); }
+    public String openrouterModel()     { return get("openrouter.model", "google/gemini-2.0-flash-001"); }
+
+    // ---- Grok (xAI) ----
+    public String grokApiKey()          { return get("grok.api.key"); }
+    public String grokModel()           { return get("grok.model", "grok-2"); }
+
+    // ---- AI Provider selector ----
+    /** Trả về provider đang chọn: "grok" | "groq" | "openrouter" | "deepseek" | "gemini" */
+    public String aiProvider()          { return get("ai.provider", "groq"); }
     public List<String> rssSources()    { return getList("sources.rss"); }
     public int maxPostsPerRun()         { return getInt("max.posts.per.run", 3); }
 

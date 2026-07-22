@@ -67,11 +67,35 @@ Token ở trên chỉ sống ~1 giờ. Làm thêm bước này để có token s
 
 ## 3. Lấy GEMINI API KEY (AI miễn phí)
 
-1. Vào https://aistudio.google.com/app/apikey (đăng nhập Google).
-2. Bấm **Create API key** → chọn project (hoặc tạo mới) → **Create**.
-3. Copy key (dạng `AIza....`).
+> ⚠️ **QUAN TRỌNG (2026):** Google AI Studio (aistudio.google.com) hiện tại
+> **CHỈ tạo key dạng `AQ...`** — đây là OAuth credential, **KHÔNG dùng được**
+> với Gemini REST API. Bạn phải lấy key từ **Google Cloud Console** theo hướng dẫn bên dưới.
+
+### Cách lấy key hoạt động (AIza...)
+
+1. Vào https://console.cloud.google.com/apis/credentials (đăng nhập Google).
+2. Bấm **CREATE CREDENTIALS** (nút trên cùng) → chọn **API key**.
+3. Copy key hiện ra (dạng `AIza....`).
+4. (Khuyến nghị) Bấm vào key vừa tạo → mục **API restrictions** → chọn
+   **Generative Language API** → Save. Việc này giúp key an toàn hơn.
 
 ➡️ Điền vào: `gemini.api.key=...`
+
+> 💡 **Nếu Google Cloud Console cũng chỉ cho ra key `AQ.`:**
+> Dùng Phương án B bên dưới (service account + OAuth).
+
+### Phương án B: Dùng Service Account (nếu key AIza không có)
+
+1. Vào https://console.cloud.google.com/ → **IAM & Admin → Service Accounts**.
+2. **Create Service Account** → đặt tên → **Create**.
+3. Role: chọn **Vertex AI User** (hoặc để trống nếu không cần) → **Done**.
+4. Bấm vào service account vừa tạo → tab **Keys** → **Add Key → Create New Key → JSON**.
+5. File JSON sẽ tự động tải về.
+6. Đặt biến môi trường (Windows):
+   ```
+   set GOOGLE_APPLICATION_CREDENTIALS=C:\path\to\service-account-key.json
+   ```
+   Hoặc xóa dòng `gemini.api.key` trong config, app sẽ tự dùng service account.
 
 > Gói free của Gemini đủ để đăng vài chục bài/ngày. Không cần thẻ tín dụng.
 
