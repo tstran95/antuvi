@@ -1,0 +1,20 @@
+# File chứa secret - KHÔNG commit lên git
+src/main/resources/config.properties
+
+# Build output
+target/
+dependency-reduced-pom.xml
+
+# IDE
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# History (bài đã đăng)
+posted-history.json

@@ -1,0 +1,45 @@
+# ============================================================
+#  CẤU HÌNH ỨNG DỤNG FB AUTO POSTER (TEMPLATE)
+#  -> Copy file này thành config.properties rồi điền giá trị thật
+#  -> HOẶC set biến môi trường (ưu tiên hơn file)
+#     Tên ENV = tên key viết HOA, thay . thành _
+#     VD: FACEBOOK_PAGE_ID, GROQ_API_KEY, SOURCES_RSS
+# ============================================================
+
+# ---------- FACEBOOK PAGE ----------
+facebook.page.id=
+facebook.page.access.token=
+facebook.api.version=v25.0
+
+# ---------- AI PROVIDER (chọn 1) ----------
+# groq (MIỄN PHÍ) | deepseek | gemini | grok | openrouter
+ai.provider=groq
+
+# --- Groq --- https://console.groq.com/keys
+groq.api.key=
+groq.model=llama-3.3-70b-versatile
+
+# --- DeepSeek --- https://platform.deepseek.com/api_keys
+#deepseek.api.key=
+#deepseek.model=deepseek-chat
+
+# --- Gemini --- https://aistudio.google.com/app/apikey
+#gemini.api.key=
+#gemini.model=gemini-2.0-flash
+
+# ---------- NGUỒN RSS (cách nhau dấu phẩy) ----------
+sources.rss=https://tuvi.kabala.vn/feed/12-con-giap-hang-ngay.rss
+max.posts.per.run=3
+
+# ---------- GIỌNG VĂN AI ----------
+page.topic=tử vi 12 con giáp, phong thủy, tâm linh, vận mệnh
+page.tone=gần gũi, tích cực, đôi chút huyền bí, truyền cảm hứng
+post.min.sentences=6
+post.max.sentences=12
+post.use.emoji=true
+post.hashtag.count=5
+post.include.source.link=true
+
+# ---------- TELEGRAM (tùy chọn) ----------
+telegram.bot.token=
+telegram.chat.id=
