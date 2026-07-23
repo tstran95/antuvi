@@ -10,6 +10,7 @@ import com.fbposter.ai.PromptSettings;
 import com.fbposter.facebook.FacebookPoster;
 import com.fbposter.facebook.FacebookTokenHelper;
 import com.fbposter.history.PostedHistory;
+import com.fbposter.image.ImageSearchClient;
 import com.fbposter.model.Article;
 import com.fbposter.rss.RssReader;
 import com.fbposter.telegram.TelegramNotifier;
@@ -80,6 +81,10 @@ public class App {
         PostedHistory history = new PostedHistory("posted-history.json");
         TelegramNotifier telegram = new TelegramNotifier(
                 config.telegramBotToken(), config.telegramChatId());
+        ImageSearchClient imageSearch = new ImageSearchClient(config.pexelsApiKey());
+        if (imageSearch.isConfigured()) {
+            System.out.println("[App] Pexels API đã cấu hình — sẽ tìm ảnh chất lượng cao khi cần.");
+        }
 
         // 1. Đọc RSS
         List<Article> articles = rss.readAll(config.rssSources());
@@ -110,18 +115,19 @@ public class App {
                 continue;
             }
 
-            // 4. Chuẩn bị nội dung + đăng lên Facebook (hoặc in ra nếu dry-run)
+            // 4. Tìm ảnh chất lượng cao: page image -> Pexels fallback
+            String imageUrl = resolveImage(article, imageSearch);
+
+            // 5. Đăng lên Facebook (hoặc in ra nếu dry-run)
             boolean includeLink = config.postIncludeSourceLink();
 
             if (dryRun) {
                 System.out.println("---- NỘI DUNG SẼ ĐĂNG ----");
                 System.out.println(rewritten);
-                if (article.hasImage()) {
-                    if (isLowQualityImage(article.getImageUrl())) {
-                        System.out.println("[Ảnh nhỏ - sẽ dùng link share thay vì upload] " + article.getImageUrl());
-                    } else {
-                        System.out.println("[Ảnh] " + article.getImageUrl());
-                    }
+                if (imageUrl != null) {
+                    System.out.println("[Ảnh] " + imageUrl);
+                } else {
+                    System.out.println("[Không có ảnh - đăng dạng text]");
                 }
                 if (includeLink) {
                     System.out.println("Nguồn: " + article.getLink());
@@ -132,15 +138,12 @@ public class App {
             }
 
             String postId;
-            // Nếu ảnh nhỏ/chất lượng kém (icon zodiac), đăng dạng link share
-            // để Facebook tự lấy og:image chất lượng cao từ trang nguồn
-            if (article.hasImage() && !isLowQualityImage(article.getImageUrl())) {
+            if (imageUrl != null) {
                 String caption = includeLink
                         ? rewritten + "\n\nNguồn: " + article.getLink()
                         : rewritten;
-                postId = facebook.postPhoto(caption, article.getImageUrl());
+                postId = facebook.postPhoto(caption, imageUrl);
             } else {
-                // Link share: Facebook tự scrape og:image từ trang nguồn (chất lượng cao hơn)
                 String link = includeLink ? article.getLink() : null;
                 postId = facebook.post(rewritten, link);
             }
@@ -230,13 +233,35 @@ public class App {
         return s == null || s.isBlank();
     }
 
-    /** Ảnh icon zodiac nhỏ (~100px) hoặc ảnh chất lượng thấp -> nên dùng link share */
+    /**
+     * Tìm ảnh chất lượng cao nhất cho bài viết:
+     * 1. Ảnh từ trang nguồn (nếu đạt chất lượng)
+     * 2. Pexels API fallback (tìm theo keyword tiêu đề)
+     */
+    private static String resolveImage(Article article, ImageSearchClient imageSearch) {
+        if (article.hasImage() && !isLowQualityImage(article.getImageUrl())) {
+            System.out.println("[App] Dùng ảnh từ trang nguồn: " + article.getImageUrl());
+            return article.getImageUrl();
+        }
+
+        if (imageSearch.isConfigured()) {
+            System.out.println("[App] Ảnh nguồn kém/không có -> tìm ảnh Pexels...");
+            String pexelsImage = imageSearch.search(article.getTitle());
+            if (pexelsImage != null) return pexelsImage;
+        }
+
+        return null;
+    }
+
     private static boolean isLowQualityImage(String imageUrl) {
         if (imageUrl == null) return true;
-        return imageUrl.contains("12congiap")   // icon zodiac nhỏ ~100x100
-                || imageUrl.contains("/icon/")
-                || imageUrl.contains("/icons/")
-                || imageUrl.contains("avatar")
-                || imageUrl.contains("loading");
+        String lower = imageUrl.toLowerCase();
+        return lower.contains("12congiap")
+                || lower.contains("/icon/") || lower.contains("/icons/")
+                || lower.contains("avatar") || lower.contains("loading")
+                || lower.contains("spinner") || lower.contains("placeholder")
+                || lower.contains("logo") || lower.contains("1x1")
+                || lower.contains("pixel")
+                || lower.endsWith(".gif") || lower.endsWith(".svg");
     }
 }

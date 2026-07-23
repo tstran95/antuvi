@@ -110,6 +110,9 @@ public class Config {
     public String facebookAppSecret()   { return get("facebook.app.secret"); }
     public String facebookUserToken()   { return get("facebook.user.access.token"); }
 
+    // ---- Pexels (ảnh stock miễn phí) ----
+    public String pexelsApiKey()        { return get("pexels.api.key"); }
+
     // ---- Telegram ----
     public String telegramBotToken()    { return get("telegram.bot.token"); }
     public String telegramChatId()      { return get("telegram.chat.id"); }

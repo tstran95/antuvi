@@ -168,38 +168,68 @@ public class RssReader {
 
     /**
      * Trích URL ảnh chính từ trang web.
-     * Ưu tiên: og:image (chất lượng cao, thiết kế cho Facebook share)
-     * -> ảnh featured trong nội dung -> ảnh khác (bỏ qua icon/logo nhỏ)
+     * Ưu tiên: og:image -> twitter:image -> ảnh lớn trong nội dung.
+     * Validate kích thước tối thiểu 400px để loại icon/thumbnail nhỏ.
      */
     private String extractPageImage(org.jsoup.nodes.Document doc) {
         // (1) og:image meta — chất lượng cao nhất, thiết kế cho social sharing
-        var ogImage = doc.selectFirst("meta[property=og:image]");
-        if (ogImage != null) {
-            String src = ogImage.attr("content");
-            if (!src.isBlank() && !src.contains("logo") && !src.contains("icon")) {
-                return src;
-            }
-        }
+        String ogSrc = metaContent(doc, "meta[property=og:image]");
+        if (ogSrc != null && isGoodImageUrl(ogSrc)) return ogSrc;
 
-        // (2) Ảnh featured trong vùng nội dung (bỏ qua icon 12 con giáp nhỏ)
+        // (2) twitter:image — nhiều site VN có twitter card nhưng thiếu og:image
+        String twSrc = metaContent(doc, "meta[name=twitter:image]");
+        if (twSrc == null) twSrc = metaContent(doc, "meta[property=twitter:image]");
+        if (twSrc != null && isGoodImageUrl(twSrc)) return twSrc;
+
+        // (3) Ảnh lớn trong vùng nội dung — ưu tiên ảnh có width/height lớn
         String[] contentSelectors = {
                 ".entry-content img", ".post-content img",
-                "article img", ".content img", ".panel img"
+                "article img", ".article-content img",
+                ".content img", ".panel img", "main img"
         };
+        String bestSrc = null;
+        int bestSize = 0;
         for (String sel : contentSelectors) {
-            var imgs = doc.select(sel);
-            for (var img : imgs) {
+            for (var img : doc.select(sel)) {
                 String src = img.absUrl("src");
-                if (src == null || src.isBlank()) continue;
-                // Bỏ qua icon zodiac nhỏ và logo
-                if (src.contains("logo") || src.contains("icon")
-                        || src.contains("avatar") || src.contains("banner")
-                        || src.contains("12congiap")  // icon zodiac nhỏ ~100px
-                        || src.contains("loading")) continue;
-                return src;
+                if (src == null || src.isBlank() || !isGoodImageUrl(src)) continue;
+                int w = attrInt(img, "width");
+                int h = attrInt(img, "height");
+                int size = Math.max(w, h);
+                if (size == 0) size = 500;
+                if (size > bestSize) {
+                    bestSize = size;
+                    bestSrc = src;
+                }
             }
         }
-        return null;
+        return bestSrc;
+    }
+
+    private String metaContent(org.jsoup.nodes.Document doc, String cssQuery) {
+        var el = doc.selectFirst(cssQuery);
+        if (el == null) return null;
+        String val = el.attr("content").trim();
+        return val.isBlank() ? null : val;
+    }
+
+    private int attrInt(org.jsoup.nodes.Element el, String attr) {
+        try {
+            return Integer.parseInt(el.attr(attr).replaceAll("[^0-9]", ""));
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    private boolean isGoodImageUrl(String url) {
+        if (url == null || url.isBlank()) return false;
+        String lower = url.toLowerCase();
+        return !lower.contains("logo") && !lower.contains("/icon")
+                && !lower.contains("/icons/") && !lower.contains("avatar")
+                && !lower.contains("12congiap") && !lower.contains("loading")
+                && !lower.contains("spinner") && !lower.contains("placeholder")
+                && !lower.contains("1x1") && !lower.contains("pixel")
+                && !lower.endsWith(".gif") && !lower.endsWith(".svg");
     }
 
     /**
